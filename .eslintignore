@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+*.tsbuildinfo
+
+# Generated files
+apps/icons/dist/
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+*.lcov
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Storybook
+storybook-static
+

@@ -1,0 +1,24 @@
+.content {
+  --ax-public-node-gap: 0;
+}
+
+.collapsible {
+  padding-top: 0.5rem;
+}
+
+/* Red icon styling for hang-up-call and stop-call-recording nodes */
+.node-type-hang-up-call :global(svg),
+.node-type-stop-call-recording :global(svg) {
+  color: #ef4444;
+  fill: #ef4444;
+}
+
+.node-type-hang-up-call :global(svg path),
+.node-type-stop-call-recording :global(svg path),
+.node-type-hang-up-call :global(svg circle),
+.node-type-stop-call-recording :global(svg circle),
+.node-type-hang-up-call :global(svg rect),
+.node-type-stop-call-recording :global(svg rect) {
+  stroke: #ef4444;
+  fill: #ef4444;
+}
