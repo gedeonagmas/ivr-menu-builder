@@ -118,6 +118,46 @@ function DiagramContainerComponent({ edgeTypes = {} }: { edgeTypes?: EdgeTypes }
     [onSelectionChange],
   );
 
+  const handleOnInit = useCallback(
+    (instance: any) => {
+      onInit(instance);
+      // Add arrow marker after ReactFlow is initialized
+      setTimeout(() => {
+        const svgElement = document.querySelector<SVGElement>('.react-flow__edges svg');
+        if (svgElement) {
+          let defs = svgElement.querySelector('defs');
+          if (!defs) {
+            defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            svgElement.insertBefore(defs, svgElement.firstChild);
+          }
+          if (!defs.querySelector('#react-flow__arrowclosed')) {
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'react-flow__arrowclosed');
+            marker.setAttribute('markerWidth', '12.5');
+            marker.setAttribute('markerHeight', '12.5');
+            marker.setAttribute('viewBox', '-10 -10 20 20');
+            marker.setAttribute('markerUnits', 'strokeWidth');
+            marker.setAttribute('refX', '0');
+            marker.setAttribute('refY', '0');
+            marker.setAttribute('orient', 'auto');
+
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('stroke', 'currentColor');
+            polyline.setAttribute('stroke-linecap', 'round');
+            polyline.setAttribute('stroke-linejoin', 'round');
+            polyline.setAttribute('stroke-width', '1');
+            polyline.setAttribute('fill', 'currentColor');
+            polyline.setAttribute('points', '-5,-4 0,0 -5,4');
+
+            marker.appendChild(polyline);
+            defs.appendChild(marker);
+          }
+        }
+      }, 50);
+    },
+    [onInit],
+  );
+
   useEffect(() => destroyNodeChangedListeners(), []);
 
   const diagramEdgeTypes = useMemo(() => ({ labelEdge: LabelEdge, ...edgeTypes }), [edgeTypes]);
@@ -153,7 +193,7 @@ function DiagramContainerComponent({ edgeTypes = {} }: { edgeTypes?: EdgeTypes }
         fitView
         fitViewOptions={fitViewOptions}
         onDragOver={onDragOver}
-        onInit={onInit}
+        onInit={handleOnInit}
         onDrop={onDrop}
         connectionLineComponent={TemporaryEdge}
         panOnScroll

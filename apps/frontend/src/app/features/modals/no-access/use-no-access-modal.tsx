@@ -18,5 +18,6 @@ export function useNoAccessModal() {
     });
   }, [openModal, t]);
 
-  return { openNoAccessModal };
+  return {  };
+  // return { openNoAccessModal };
 }
