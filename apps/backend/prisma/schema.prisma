@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  organizationId String?
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  workflows     Workflow[]
+  calls         Call[]
+  recordings    Recording[]
+
+  @@index([email])
+  @@index([organizationId])
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  subdomain   String   @unique
+  settings    Json?    // Store org-specific settings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  workflows   Workflow[]
+  calls       Call[]
+  phoneNumbers PhoneNumber[]
+
+  @@index([subdomain])
+}
+
+model Workflow {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  diagram         Json          // ReactFlow diagram data
+  status          WorkflowStatus @default(DRAFT)
+  version         Int           @default(1)
+  organizationId  String
+  userId          String
+  twilioFlowSid   String?       // Twilio Studio Flow SID when deployed
+  isActive        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+  calls           Call[]
+  deployments     Deployment[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Deployment {
+  id          String   @id @default(uuid())
+  workflowId String
+  version     Int
+  deployedAt  DateTime @default(now())
+  deployedBy  String
+  status      DeploymentStatus @default(SUCCESS)
+  error       String?
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+
+  @@index([workflowId])
+}
+
+model PhoneNumber {
+  id            String   @id @default(uuid())
+  number        String   @unique
+  organizationId String
+  twilioSid     String?  // Twilio Phone Number SID
+  friendlyName  String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  calls         Call[]
+
+  @@index([organizationId])
+  @@index([number])
+}
+
+model Call {
+  id              String      @id @default(uuid())
+  workflowId      String?
+  phoneNumberId  String?
+  organizationId  String
+  userId          String?
+  twilioCallSid   String?     @unique
+  fromNumber      String
+  toNumber        String
+  status          CallStatus  @default(INITIATED)
+  duration        Int?        // in seconds
+  startedAt       DateTime    @default(now())
+  endedAt         DateTime?
+  metadata        Json?       // Store call metadata, variables, etc.
+
+  workflow        Workflow?    @relation(fields: [workflowId], references: [id])
+  phoneNumber     PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  user            User?        @relation(fields: [userId], references: [id])
+  recordings      Recording[]
+  events          CallEvent[]
+
+  @@index([workflowId])
+  @@index([organizationId])
+  @@index([twilioCallSid])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model CallEvent {
+  id          String   @id @default(uuid())
+  callId      String
+  eventType   String   // 'node-executed', 'input-received', 'error', etc.
+  nodeId      String?
+  nodeType    String?
+  data        Json?    // Event-specific data
+  timestamp   DateTime @default(now())
+
+  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([timestamp])
+}
+
+model Recording {
+  id            String   @id @default(uuid())
+  callId       String?
+  workflowId   String?
+  userId       String
+  organizationId String
+  twilioSid    String?  @unique
+  url          String?  // Storage URL (S3, etc.)
+  duration     Int?     // in seconds
+  transcription String? // Text transcription
+  createdAt    DateTime @default(now())
+
+  call         Call?    @relation(fields: [callId], references: [id])
+  workflow     Workflow? @relation(fields: [workflowId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([callId])
+  @@index([organizationId])
+  @@index([twilioSid])
+}
+
+model Analytics {
+  id            String   @id @default(uuid())
+  organizationId String
+  workflowId   String?
+  date         DateTime @default(now())
+  metricType   String   // 'call-volume', 'completion-rate', 'avg-duration', etc.
+  value        Float
+  metadata     Json?
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([date])
+  @@index([metricType])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum DeploymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  BUSY
+  NO_ANSWER
+  CANCELED
+}
+

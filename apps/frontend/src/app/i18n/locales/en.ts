@@ -182,6 +182,7 @@ export const en = {
     simulate: 'Simulate IVR Flow',
     pause: 'Pause Simulation',
     resume: 'Resume Simulation',
+    deploy: 'Deploy to Twilio',
     changeLanguage: 'Change Language',
   },
   snackbar: {

@@ -66,6 +66,16 @@
   transform: rotate(90deg);
 }
 
+.guest-badge {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
 @media screen and (max-width: 800px) {
   .container {
     .project-selection {

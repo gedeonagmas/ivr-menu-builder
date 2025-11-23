@@ -1,0 +1,210 @@
+import { Router } from 'express';
+import { body, validationResult } from 'express-validator';
+import { prisma } from '../database/prisma.js';
+import { AppError } from '../middleware/error-handler.js';
+import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
+import { workflowExecutionEngine } from '../services/workflow-execution-engine.js';
+import { twilioService } from '../services/twilio.service.js';
+
+export const workflowRoutes = Router();
+
+// All routes require authentication
+workflowRoutes.use(authenticate);
+
+// Get all workflows for user's organization
+workflowRoutes.get('/', async (req: AuthRequest, res, next) => {
+  try {
+    const workflows = await prisma.workflow.findMany({
+      where: {
+        organizationId: req.user!.organizationId || undefined,
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        version: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({ workflows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single workflow
+workflowRoutes.get('/:id', async (req: AuthRequest, res, next) => {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: req.params.id,
+        organizationId: req.user!.organizationId || undefined,
+      },
+    });
+
+    if (!workflow) {
+      throw new AppError('Workflow not found', 404);
+    }
+
+    res.json({ workflow });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create workflow
+workflowRoutes.post(
+  '/',
+  [
+    body('name').trim().notEmpty(),
+    body('diagram').isObject(),
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { name, description, diagram } = req.body;
+
+      const workflow = await prisma.workflow.create({
+        data: {
+          name,
+          description,
+          diagram: diagram as any,
+          organizationId: req.user!.organizationId!,
+          userId: req.user!.id,
+        },
+      });
+
+      res.status(201).json({ workflow });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Update workflow
+workflowRoutes.put(
+  '/:id',
+  [body('name').optional().trim().notEmpty(), body('diagram').optional().isObject()],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const workflow = await prisma.workflow.findFirst({
+        where: {
+          id: req.params.id,
+          organizationId: req.user!.organizationId || undefined,
+        },
+      });
+
+      if (!workflow) {
+        throw new AppError('Workflow not found', 404);
+      }
+
+      const updated = await prisma.workflow.update({
+        where: { id: req.params.id },
+        data: {
+          ...(req.body.name && { name: req.body.name }),
+          ...(req.body.description !== undefined && { description: req.body.description }),
+          ...(req.body.diagram && { diagram: req.body.diagram }),
+          version: workflow.version + 1,
+        },
+      });
+
+      res.json({ workflow: updated });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Deploy workflow to Twilio
+workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: req.params.id,
+        organizationId: req.user!.organizationId || undefined,
+      },
+    });
+
+    if (!workflow) {
+      throw new AppError('Workflow not found', 404);
+    }
+
+    // Convert ReactFlow diagram to Twilio Studio Flow JSON
+    const twilioFlow = await workflowExecutionEngine.convertToTwilioFlow(workflow.diagram as any);
+
+    // Deploy to Twilio
+    const twilioFlowSid = await twilioService.createOrUpdateFlow(
+      workflow.twilioFlowSid || undefined,
+      workflow.name,
+      twilioFlow,
+    );
+
+    // Update workflow
+    const updated = await prisma.workflow.update({
+      where: { id: req.params.id },
+      data: {
+        twilioFlowSid,
+        isActive: true,
+        status: 'ACTIVE',
+      },
+    });
+
+    // Create deployment record
+    await prisma.deployment.create({
+      data: {
+        workflowId: workflow.id,
+        version: workflow.version,
+        deployedBy: req.user!.id,
+        status: 'SUCCESS',
+      },
+    });
+
+    res.json({ workflow: updated, twilioFlowSid });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete workflow
+workflowRoutes.delete('/:id', async (req: AuthRequest, res, next) => {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: req.params.id,
+        organizationId: req.user!.organizationId || undefined,
+      },
+    });
+
+    if (!workflow) {
+      throw new AppError('Workflow not found', 404);
+    }
+
+    // If deployed, delete from Twilio
+    if (workflow.twilioFlowSid) {
+      await twilioService.deleteFlow(workflow.twilioFlowSid);
+    }
+
+    await prisma.workflow.delete({
+      where: { id: req.params.id },
+    });
+
+    res.json({ message: 'Workflow deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+

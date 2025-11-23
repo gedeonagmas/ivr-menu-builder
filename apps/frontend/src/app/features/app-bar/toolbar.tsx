@@ -3,7 +3,12 @@ import Logo from '../../../assets/workflow-builder-logo.svg?react';
 import { NavButton } from '@synergycodes/axiom';
 import { Icon } from '@workflow-builder/icons';
 import { useTranslation } from 'react-i18next';
-import { Pause } from '@phosphor-icons/react';
+import { Pause, CloudArrowUp } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { apiService } from '@/services/api.service';
+import useStore from '@/store/store';
+import { showSnackbar } from '@/utils/show-snackbar';
+import { SnackbarType } from '@synergycodes/axiom';
 interface ToolbarProps {
   onSave: () => void;
   onOpen: () => void;
@@ -19,6 +24,64 @@ interface ToolbarProps {
 
 export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, canRedo, isReadOnlyMode, isSimulating, isPaused }: ToolbarProps) {
   const { t } = useTranslation(undefined, { keyPrefix: 'tooltips' });
+  const [isDeploying, setIsDeploying] = useState(false);
+  const documentName = useStore((state) => state.documentName);
+  const reactFlowInstance = useStore((state) => state.reactFlowInstance);
+  const currentWorkflowId = useStore((state) => (state as any).currentWorkflowId);
+
+  const handleDeploy = async () => {
+    const isGuest = localStorage.getItem('guest_mode') === 'true';
+    
+    if (isGuest) {
+      showSnackbar({
+        title: 'Please sign in to deploy workflows to Twilio',
+        variant: SnackbarType.WARNING,
+      });
+      return;
+    }
+
+    if (!reactFlowInstance) {
+      showSnackbar({
+        title: 'No workflow to deploy',
+        variant: SnackbarType.WARNING,
+      });
+      return;
+    }
+
+    setIsDeploying(true);
+    try {
+      const data = reactFlowInstance.toObject();
+      
+      if (currentWorkflowId) {
+        // Update and deploy existing workflow
+        await apiService.updateWorkflow(currentWorkflowId, {
+          name: documentName || 'Untitled',
+          diagram: data as any,
+        });
+        await apiService.deployWorkflow(currentWorkflowId);
+      } else {
+        // Create new workflow and deploy
+        const { workflow } = await apiService.createWorkflow(
+          documentName || 'Untitled',
+          '',
+          data as any,
+        );
+        await apiService.deployWorkflow(workflow.id);
+      }
+
+      showSnackbar({
+        title: 'Workflow deployed successfully to Twilio!',
+        variant: SnackbarType.SUCCESS,
+      });
+    } catch (error: any) {
+      showSnackbar({
+        title: error.message || 'Failed to deploy workflow',
+        variant: SnackbarType.ERROR,
+      });
+    } finally {
+      setIsDeploying(false);
+    }
+  };
 
   return (
     <div className={styles['toolbar']}>
@@ -32,6 +95,9 @@ export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, c
         </NavButton>
         <NavButton onClick={onSimulate} disabled={isReadOnlyMode} tooltip={isSimulating ? (isPaused ? t('resume') : t('pause')) : t('simulate')}>
           {isSimulating && !isPaused ? <Pause size={20} /> : <Icon name="PlayCircle" />}
+        </NavButton>
+        <NavButton onClick={handleDeploy} disabled={isReadOnlyMode || isDeploying} tooltip={t('deploy')}>
+          <CloudArrowUp size={20} />
         </NavButton>
         <NavButton onClick={onUndo} disabled={!canUndo || isReadOnlyMode} tooltip={t('undo')}>
           <Icon name="ArrowUUpLeft" />

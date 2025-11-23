@@ -11,6 +11,7 @@ import {
   MoonStars,
   PencilSimple,
   PencilSimpleSlash,
+  SignIn as SignInIcon,
   Sun,
   TreeStructure,
 } from '@phosphor-icons/react';
@@ -33,6 +34,8 @@ interface ControlsProps {
   onThemeChange: (isDarkMode: boolean) => void;
   showGrid: boolean;
   onToggleGrid: (value: boolean) => void;
+  isGuest?: boolean;
+  onLogout?: () => void;
 }
 
 export function Controls({
@@ -48,6 +51,8 @@ export function Controls({
   onToggleReadOnly,
   showGrid,
   onToggleGrid,
+  isGuest = false,
+  onLogout,
 }: ControlsProps) {
   const { t } = useTranslation();
 
@@ -91,6 +96,16 @@ export function Controls({
         icon={<GridFour />}
         IconChecked={<GridFour />}
       />
+      {isGuest && (
+        <div className={styles['guest-badge']} title="Guest Mode - Sign in for full features">
+          Guest
+        </div>
+      )}
+      {isGuest && onLogout && (
+        <NavButton onClick={onLogout} tooltip="Sign In">
+          <SignInIcon size={20} />
+        </NavButton>
+      )}
       <IconSwitch
         checked={layoutVertical}
         onChange={onLayoutChange}

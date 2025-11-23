@@ -11,6 +11,7 @@ import { UndoRedoContext } from '@/providers/undo-redo-provider';
 import { useElkLayout } from '@/hooks/use-elk-layout/use-elk-layout';
 import { useNoAccessModal } from '@/features/modals/no-access/use-no-access-modal';
 import { useTheme } from '../../hooks/use-theme';
+import { useAuth } from '@/features/auth/auth-provider';
 
 export function AppBarContainer() {
   const documentName = useStore((state) => state.documentName || '');
@@ -25,6 +26,7 @@ export function AppBarContainer() {
   const { undo, redo, canUndo, canRedo } = useContext(UndoRedoContext);
   const { openNoAccessModal } = useNoAccessModal();
   const { theme, toggleTheme } = useTheme();
+  const { isGuest, logout } = useAuth();
   
   const startSimulation = useStore((store) => store.startSimulation);
   const stopSimulation = useStore((store) => store.stopSimulation);
@@ -81,20 +83,22 @@ export function AppBarContainer() {
         onDuplicateClick={openNoAccessModal}
         isReadOnlyMode={isReadOnlyMode}
       />
-      <Controls
-        layoutVertical={layoutDirection === 'DOWN'}
-        onLayoutChange={handleLayoutChange}
-        onToggleReadOnly={handleChangeReadonlyMode}
-        onExport={openNoAccessModal}
-        onImport={openNoAccessModal}
-        onSaveAsImage={openNoAccessModal}
-        onArchive={openNoAccessModal}
-        isReadOnlyMode={isReadOnlyMode}
-        isDarkMode={theme === 'dark'}
-        onThemeChange={toggleTheme}
-        showGrid={showGrid}
-        onToggleGrid={setShowGrid}
-      />
+          <Controls
+            layoutVertical={layoutDirection === 'DOWN'}
+            onLayoutChange={handleLayoutChange}
+            onToggleReadOnly={handleChangeReadonlyMode}
+            onExport={openNoAccessModal}
+            onImport={openNoAccessModal}
+            onSaveAsImage={openNoAccessModal}
+            onArchive={openNoAccessModal}
+            isReadOnlyMode={isReadOnlyMode}
+            isDarkMode={theme === 'dark'}
+            onThemeChange={toggleTheme}
+            showGrid={showGrid}
+            onToggleGrid={setShowGrid}
+            isGuest={isGuest}
+            onLogout={logout}
+          />
     </div>
   );
 }

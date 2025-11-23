@@ -11,6 +11,8 @@ import { MousePositionProvider } from './providers/mouse-position-provider';
 import { DiagramWrapper } from './features/diagram/diagram-wrapper';
 import { SnackbarContainer } from './features/snackbar/snackbar-container';
 import { ModalProvider } from './features/modals/modal-provider';
+import { AuthProvider, useAuth } from './features/auth/auth-provider';
+import { LoginForm } from './features/auth/login-form';
 import { useDetectLanguageChange } from './i18n/use-detect-language-change';
 import { setAutoFreeze } from 'immer';
 
@@ -19,12 +21,26 @@ import './i18n/index';
 // Plugins entry point
 import '@/features/plugins/index';
 
-export function App() {
+function AppContent() {
   useDetectLanguageChange();
+  const { isAuthenticated, isLoading, isGuest } = useAuth();
 
   // Disable immer's automatic object freezing because ReactFlow mutates objects under the hood
   // and requires this to be turned off to function properly, especially when node size is updated
   setAutoFreeze(false);
+
+  if (isLoading) {
+    return <AppLoaderContainer />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
+  // Show guest mode indicator
+  if (isGuest) {
+    // You can add a guest mode banner here if needed
+  }
 
   return (
     <ReactFlowProvider>
@@ -58,5 +74,13 @@ export function App() {
         </UndoRedoProvider>
       </ZoomProvider>
     </ReactFlowProvider>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
