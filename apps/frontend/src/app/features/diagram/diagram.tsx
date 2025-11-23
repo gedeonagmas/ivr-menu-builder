@@ -29,6 +29,7 @@ import { WorkflowBuilderOnSelectionChangeParams } from '@workflow-builder/types/
 import { WorkflowBuilderEdge, WorkflowBuilderNode } from '@workflow-builder/types/node-data';
 import { Watermark } from '../watermark/watermark';
 import { ArrowMarker } from './edges/arrow-marker';
+import { useSimulation } from '@/hooks/use-simulation';
 
 function DiagramContainerComponent({ edgeTypes = {} }: { edgeTypes?: EdgeTypes }) {
   const {
@@ -45,6 +46,9 @@ function DiagramContainerComponent({ edgeTypes = {} }: { edgeTypes?: EdgeTypes }
   } = useStore(diagramStateSelector);
 
   const showGrid = useStore((store) => store.showGrid);
+
+  // Initialize simulation
+  useSimulation();
 
   const { openDeleteConfirmationModal } = useDeleteConfirmation();
 

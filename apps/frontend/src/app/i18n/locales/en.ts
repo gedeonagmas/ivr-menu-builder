@@ -179,6 +179,9 @@ export const en = {
     closePalette: 'Close palette',
     importDiagram: 'Import File',
     save: 'Save',
+    simulate: 'Simulate IVR Flow',
+    pause: 'Pause Simulation',
+    resume: 'Resume Simulation',
     changeLanguage: 'Change Language',
   },
   snackbar: {

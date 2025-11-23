@@ -25,11 +25,30 @@ export function AppBarContainer() {
   const { undo, redo, canUndo, canRedo } = useContext(UndoRedoContext);
   const { openNoAccessModal } = useNoAccessModal();
   const { theme, toggleTheme } = useTheme();
+  
+  const startSimulation = useStore((store) => store.startSimulation);
+  const stopSimulation = useStore((store) => store.stopSimulation);
+  const isSimulating = useStore((store) => store.isSimulating);
+  const isPaused = useStore((store) => store.isPaused);
+  const pauseSimulation = useStore((store) => store.pauseSimulation);
+  const resumeSimulation = useStore((store) => store.resumeSimulation);
 
   const layout = useElkLayout();
 
   function handleSave() {
     saveDiagram(true);
+  }
+
+  function handleSimulate() {
+    if (isSimulating) {
+      if (isPaused) {
+        resumeSimulation();
+      } else {
+        pauseSimulation();
+      }
+    } else {
+      startSimulation();
+    }
   }
 
   function handleChangeReadonlyMode(value: boolean) {
@@ -48,11 +67,14 @@ export function AppBarContainer() {
       <Toolbar
         onSave={handleSave}
         onOpen={openNoAccessModal}
+        onSimulate={handleSimulate}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
         isReadOnlyMode={isReadOnlyMode}
+        isSimulating={isSimulating}
+        isPaused={isPaused}
       />
       <ProjectSelection
         documentName={documentName}

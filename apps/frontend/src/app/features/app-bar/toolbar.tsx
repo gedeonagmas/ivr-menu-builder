@@ -3,17 +3,21 @@ import Logo from '../../../assets/workflow-builder-logo.svg?react';
 import { NavButton } from '@synergycodes/axiom';
 import { Icon } from '@workflow-builder/icons';
 import { useTranslation } from 'react-i18next';
+import { Pause } from '@phosphor-icons/react';
 interface ToolbarProps {
   onSave: () => void;
   onOpen: () => void;
+  onSimulate: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
   isReadOnlyMode: boolean;
+  isSimulating: boolean;
+  isPaused: boolean;
 }
 
-export function Toolbar({ onSave, onOpen, onUndo, onRedo, canUndo, canRedo, isReadOnlyMode }: ToolbarProps) {
+export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, canRedo, isReadOnlyMode, isSimulating, isPaused }: ToolbarProps) {
   const { t } = useTranslation(undefined, { keyPrefix: 'tooltips' });
 
   return (
@@ -25,6 +29,9 @@ export function Toolbar({ onSave, onOpen, onUndo, onRedo, canUndo, canRedo, isRe
         </NavButton>
         <NavButton onClick={onOpen} tooltip={t('open')}>
           <Icon name="FolderOpen" />
+        </NavButton>
+        <NavButton onClick={onSimulate} disabled={isReadOnlyMode} tooltip={isSimulating ? (isPaused ? t('resume') : t('pause')) : t('simulate')}>
+          {isSimulating && !isPaused ? <Pause size={20} /> : <Icon name="PlayCircle" />}
         </NavButton>
         <NavButton onClick={onUndo} disabled={!canUndo || isReadOnlyMode} tooltip={t('undo')}>
           <Icon name="ArrowUUpLeft" />

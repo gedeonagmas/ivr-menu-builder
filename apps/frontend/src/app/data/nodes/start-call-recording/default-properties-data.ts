@@ -6,5 +6,11 @@ export const defaultPropertiesData: NodeDataProperties<StartCallRecordingNodeSch
   description: 'node.startCallRecording.description',
   status: 'active',
   recordingId: '',
+  format: 'mp3',
+  channels: 'both',
+  transcription: false,
+  emailNotification: false,
+  emailAddress: '',
+  storageLocation: 'default',
 };
 

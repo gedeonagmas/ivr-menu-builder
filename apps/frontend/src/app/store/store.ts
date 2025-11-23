@@ -11,6 +11,7 @@ import {
 import { PaletteState, usePaletteSlice } from './slices/palette/palette-slice';
 import { DiagramSelectionState, useDiagramSelectionSlice } from './slices/diagram-selection/diagram-selection-slice';
 import { DiagramState, useDiagramSlice } from './slices/diagram-slice';
+import { SimulationState, useSimulationSlice } from './slices/simulation-slice';
 import { devtools } from 'zustand/middleware';
 import { withInterceptingMiddleware } from './middleware/middleware';
 import { shallow } from 'zustand/shallow';
@@ -21,7 +22,8 @@ export type WorkflowEditorState = DiagramState &
   DiagramSelectionState &
   DiagramDataPersistenceState &
   DiagramDataModificationState &
-  UserPreferencesState;
+  UserPreferencesState &
+  SimulationState;
 
 export type SetDiagramState = (
   partial:
@@ -40,6 +42,7 @@ const store: StateCreator<WorkflowEditorState> = withInterceptingMiddleware((set
   ...useDiagramSelectionSlice(set, get),
   ...usePaletteSlice(set, get),
   ...useUserPreferencesSlice(set, get),
+  ...useSimulationSlice(set, get),
 }))([]);
 const useStore = createWithEqualityFn<WorkflowEditorState>()(
   devtools<WorkflowEditorState>(store, {

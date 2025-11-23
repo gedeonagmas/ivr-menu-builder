@@ -2,3 +2,8 @@
   width: 100vw;
   height: 100vh;
 }
+
+/* Hide ReactFlow attribution link */
+.container :global(.react-flow__attribution) {
+  display: none !important;
+}

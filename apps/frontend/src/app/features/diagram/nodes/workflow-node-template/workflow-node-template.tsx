@@ -5,6 +5,8 @@ import { Collapsible, NodeDescription, NodeIcon, NodePanel, Status } from '@syne
 import { Icon } from '@workflow-builder/icons';
 import { getHandleId } from '../../handles/get-handle-id';
 import { getHandlePosition } from '../../handles/get-handle-position';
+import useStore from '@/store/store';
+import clsx from 'clsx';
 
 import styles from './workflow-node-template.module.css';
 import { withOptionalPlugins } from '@/features/plugins/utils/adapter-components';
@@ -48,12 +50,20 @@ const WorkflowNodeTemplateComponent = memo(
     const iconElement = useMemo(() => <Icon name={icon} size="large" color={iconColor} />, [icon, iconColor]);
 
     const hasContent = !!children;
+    const activeNodeId = useStore((store) => store.activeNodeId);
+    const isActive = activeNodeId === id;
 
     const nodeTypeClass = nodeType ? styles[`node-type-${nodeType}`] : '';
 
     return (
       <Collapsible>
-        <NodePanel.Root selected={selected} className={`${styles['content']} ${nodeTypeClass}`} data-node-type={nodeType}>
+        <NodePanel.Root 
+          selected={selected} 
+          className={clsx(styles['content'], nodeTypeClass, {
+            [styles['simulating']]: isActive,
+          })} 
+          data-node-type={nodeType}
+        >
           <NodePanel.Header>
             <Status status={isValid === false ? 'invalid' : undefined} />
             <NodeIcon icon={iconElement} />

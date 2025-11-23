@@ -22,3 +22,20 @@
   stroke: #ef4444;
   fill: #ef4444;
 }
+
+/* Simulation active state */
+.simulating {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  animation: pulse-simulation 1.5s infinite;
+}
+
+@keyframes pulse-simulation {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+}
