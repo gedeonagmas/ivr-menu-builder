@@ -56,6 +56,8 @@ model Workflow {
   organizationId  String
   userId          String
   twilioFlowSid   String?       // Twilio Studio Flow SID when deployed
+  fusionpbxDialplanUuid String? // FusionPBX Dialplan UUID when deployed
+  deploymentType  String        @default("twilio") // "twilio" or "fusionpbx"
   isActive        Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -64,10 +66,12 @@ model Workflow {
   user            User          @relation(fields: [userId], references: [id])
   calls           Call[]
   deployments     Deployment[]
+  recordings      Recording[]
 
   @@index([organizationId])
   @@index([userId])
   @@index([status])
+  @@index([fusionpbxDialplanUuid])
 }
 
 model Deployment {
@@ -108,6 +112,7 @@ model Call {
   organizationId  String
   userId          String?
   twilioCallSid   String?     @unique
+  fusionpbxCallUuid String?   @unique // FusionPBX Call UUID
   fromNumber      String
   toNumber        String
   status          CallStatus  @default(INITIATED)
@@ -126,6 +131,7 @@ model Call {
   @@index([workflowId])
   @@index([organizationId])
   @@index([twilioCallSid])
+  @@index([fusionpbxCallUuid])
   @@index([status])
   @@index([startedAt])
 }
@@ -152,6 +158,7 @@ model Recording {
   userId       String
   organizationId String
   twilioSid    String?  @unique
+  fusionpbxSid String?  @unique // FusionPBX Recording UUID
   url          String?  // Storage URL (S3, etc.)
   duration     Int?     // in seconds
   transcription String? // Text transcription
@@ -164,6 +171,7 @@ model Recording {
   @@index([callId])
   @@index([organizationId])
   @@index([twilioSid])
+  @@index([fusionpbxSid])
 }
 
 model Analytics {

@@ -5,6 +5,7 @@ import { AppError } from '../middleware/error-handler.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { workflowExecutionEngine } from '../services/workflow-execution-engine.js';
 import { twilioService } from '../services/twilio.service.js';
+import { fusionpbxService } from '../services/fusionpbx.service.js';
 
 export const workflowRoutes = Router();
 
@@ -129,9 +130,11 @@ workflowRoutes.put(
   },
 );
 
-// Deploy workflow to Twilio
+// Deploy workflow to Twilio or FusionPBX
 workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
   try {
+    const { deploymentType = 'fusionpbx' } = req.body; // Default to FusionPBX
+
     const workflow = await prisma.workflow.findFirst({
       where: {
         id: req.params.id,
@@ -143,37 +146,73 @@ workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
       throw new AppError('Workflow not found', 404);
     }
 
-    // Convert ReactFlow diagram to Twilio Studio Flow JSON
-    const twilioFlow = await workflowExecutionEngine.convertToTwilioFlow(workflow.diagram as any);
+    let updated;
 
-    // Deploy to Twilio
-    const twilioFlowSid = await twilioService.createOrUpdateFlow(
-      workflow.twilioFlowSid || undefined,
-      workflow.name,
-      twilioFlow,
-    );
+    if (deploymentType === 'fusionpbx') {
+      // Deploy to FusionPBX
+      const fusionpbxFlow = await workflowExecutionEngine.convertToFusionPBXFlow(workflow.diagram as any);
 
-    // Update workflow
-    const updated = await prisma.workflow.update({
-      where: { id: req.params.id },
-      data: {
-        twilioFlowSid,
-        isActive: true,
-        status: 'ACTIVE',
-      },
-    });
+      const fusionpbxDialplanUuid = await fusionpbxService.createOrUpdateFlow(
+        workflow.fusionpbxDialplanUuid || undefined,
+        workflow.name,
+        fusionpbxFlow,
+      );
 
-    // Create deployment record
-    await prisma.deployment.create({
-      data: {
-        workflowId: workflow.id,
-        version: workflow.version,
-        deployedBy: req.user!.id,
-        status: 'SUCCESS',
-      },
-    });
+      // Update workflow
+      updated = await prisma.workflow.update({
+        where: { id: req.params.id },
+        data: {
+          fusionpbxDialplanUuid,
+          deploymentType: 'fusionpbx',
+          isActive: true,
+          status: 'ACTIVE',
+        },
+      });
 
-    res.json({ workflow: updated, twilioFlowSid });
+      // Create deployment record
+      await prisma.deployment.create({
+        data: {
+          workflowId: workflow.id,
+          version: workflow.version,
+          deployedBy: req.user!.id,
+          status: 'SUCCESS',
+        },
+      });
+
+      res.json({ workflow: updated, fusionpbxDialplanUuid });
+    } else {
+      // Deploy to Twilio (existing functionality)
+      const twilioFlow = await workflowExecutionEngine.convertToTwilioFlow(workflow.diagram as any);
+
+      const twilioFlowSid = await twilioService.createOrUpdateFlow(
+        workflow.twilioFlowSid || undefined,
+        workflow.name,
+        twilioFlow,
+      );
+
+      // Update workflow
+      updated = await prisma.workflow.update({
+        where: { id: req.params.id },
+        data: {
+          twilioFlowSid,
+          deploymentType: 'twilio',
+          isActive: true,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Create deployment record
+      await prisma.deployment.create({
+        data: {
+          workflowId: workflow.id,
+          version: workflow.version,
+          deployedBy: req.user!.id,
+          status: 'SUCCESS',
+        },
+      });
+
+      res.json({ workflow: updated, twilioFlowSid });
+    }
   } catch (error) {
     next(error);
   }
@@ -193,9 +232,12 @@ workflowRoutes.delete('/:id', async (req: AuthRequest, res, next) => {
       throw new AppError('Workflow not found', 404);
     }
 
-    // If deployed, delete from Twilio
+    // If deployed, delete from appropriate service
     if (workflow.twilioFlowSid) {
       await twilioService.deleteFlow(workflow.twilioFlowSid);
+    }
+    if (workflow.fusionpbxDialplanUuid) {
+      await fusionpbxService.deleteFlow(workflow.fusionpbxDialplanUuid);
     }
 
     await prisma.workflow.delete({

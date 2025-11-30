@@ -21,9 +21,51 @@ type WorkflowBuilderEdge = {
 };
 
 /**
- * Converts ReactFlow diagram to Twilio Studio Flow JSON
+ * Converts ReactFlow diagram to FusionPBX Dialplan or Twilio Studio Flow JSON
  */
 class WorkflowExecutionEngine {
+  /**
+   * Convert ReactFlow diagram to FusionPBX Dialplan definition
+   */
+  async convertToFusionPBXFlow(diagram: {
+    nodes: WorkflowBuilderNode[];
+    edges: WorkflowBuilderEdge[];
+  }): Promise<any> {
+    const { nodes, edges } = diagram;
+
+    if (nodes.length === 0) {
+      throw new Error('Workflow must have at least one node');
+    }
+
+    // Find start node (no incoming edges)
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const nodesWithIncoming = new Set(edges.map(e => e.target));
+    const startNodes = nodes.filter(n => !nodesWithIncoming.has(n.id));
+    const startNode = startNodes[0] || nodes[0];
+
+    if (!startNode) {
+      throw new Error('No start node found');
+    }
+
+    // Build FusionPBX Dialplan structure
+    const states: Record<string, any> = {};
+
+    // Convert each node to a FusionPBX state
+    for (const node of nodes) {
+      const state = this.convertNodeToFusionPBXState(node, edges);
+      states[node.id] = state;
+    }
+
+    const flow = {
+      description: 'IVR Flow generated from Workflow Builder',
+      extension: '1000', // Default extension
+      states: states,
+      initial_state: startNode.id,
+    };
+
+    return flow;
+  }
+
   /**
    * Convert ReactFlow diagram to Twilio Studio Flow definition
    */
@@ -75,6 +117,176 @@ class WorkflowExecutionEngine {
     };
 
     return flow;
+  }
+
+  /**
+   * Convert a single node to FusionPBX state
+   */
+  private convertNodeToFusionPBXState(
+    node: WorkflowBuilderNode,
+    edges: WorkflowBuilderEdge[],
+  ): any {
+    const nodeType = node.data?.type;
+    const properties = node.data?.properties || {};
+
+    // Get outgoing edges
+    const outgoingEdges = edges.filter(e => e.source === node.id);
+
+    switch (nodeType) {
+      case 'answer-call': {
+        return {
+          type: 'say-play',
+          name: node.id,
+          transitions: {
+            next: outgoingEdges[0]?.target || null,
+          },
+          properties: {
+            say: 'Welcome to our IVR system!',
+          },
+        };
+      }
+
+      case 'play-audio-tts': {
+        const messageType = properties.messageType;
+        const messageText = properties.messageText as string;
+        const audioFile = properties.audioFile as string;
+
+        if (messageType === 'tts' && messageText) {
+          return {
+            type: 'say-play',
+            name: node.id,
+            transitions: {
+              next: outgoingEdges[0]?.target || null,
+            },
+            properties: {
+              say: messageText,
+            },
+          };
+        } else if (messageType === 'audio' && audioFile) {
+          return {
+            type: 'say-play',
+            name: node.id,
+            transitions: {
+              next: outgoingEdges[0]?.target || null,
+            },
+            properties: {
+              play: audioFile,
+            },
+          };
+        }
+        break;
+      }
+
+      case 'gather-input': {
+        const maxDigits = properties.maxDigits as number || 10;
+        const timeout = properties.timeout as number || 5;
+        const finishOnKey = properties.finishOnKey as string || '#';
+
+        return {
+          type: 'gather',
+          name: node.id,
+          transitions: {
+            next: outgoingEdges[0]?.target || null,
+            timeout: outgoingEdges.find(e => e.data?.label === 'timeout')?.target || null,
+          },
+          properties: {
+            timeout: timeout * 1000, // FusionPBX uses milliseconds
+            finish_on_key: finishOnKey,
+            num_digits: maxDigits,
+          },
+        };
+      }
+
+      case 'hang-up-call': {
+        return {
+          type: 'hangup',
+          name: node.id,
+          transitions: {},
+          properties: {
+            reason: properties.reason as string || 'Call completed',
+          },
+        };
+      }
+
+      case 'forward-to-phone': {
+        const phoneNumber = properties.phoneNumber as string;
+
+        return {
+          type: 'connect',
+          name: node.id,
+          transitions: {
+            answered: outgoingEdges.find(e => e.data?.label === 'Success')?.target || null,
+            failed: outgoingEdges.find(e => e.data?.label === 'Error')?.target || null,
+          },
+          properties: {
+            to: phoneNumber,
+          },
+        };
+      }
+
+      case 'start-call-recording':
+      case 'voicemail-recording': {
+        const maxDuration = properties.maxDuration as number || 300;
+        const finishOnKey = properties.finishOnKey as string || '#';
+
+        return {
+          type: 'record-voice',
+          name: node.id,
+          transitions: {
+            recording_complete: outgoingEdges[0]?.target || null,
+          },
+          properties: {
+            max_length: maxDuration,
+            finish_on_key: finishOnKey,
+            play_beep: properties.playBeep as boolean || true,
+          },
+        };
+      }
+
+      case 'send-sms': {
+        const phoneNumber = properties.phoneNumber as string;
+        const message = properties.message as string;
+
+        return {
+          type: 'send-message',
+          name: node.id,
+          transitions: {
+            sent: outgoingEdges[0]?.target || null,
+            failed: outgoingEdges.find(e => e.data?.label === 'Failure')?.target || null,
+          },
+          properties: {
+            to: phoneNumber,
+            body: message,
+          },
+        };
+      }
+
+      default: {
+        // Default: pass through to next node
+        return {
+          type: 'say-play',
+          name: node.id,
+          transitions: {
+            next: outgoingEdges[0]?.target || null,
+          },
+          properties: {
+            say: `Processing ${nodeType}`,
+          },
+        };
+      }
+    }
+
+    // Fallback
+    return {
+      type: 'say-play',
+      name: node.id,
+      transitions: {
+        next: outgoingEdges[0]?.target || null,
+      },
+      properties: {
+        say: 'Processing...',
+      },
+    };
   }
 
   /**

@@ -4,6 +4,7 @@ import { prisma } from '../database/prisma.js';
 import { AppError } from '../middleware/error-handler.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { twilioService } from '../services/twilio.service.js';
+import { fusionpbxService } from '../services/fusionpbx.service.js';
 
 export const callRoutes = Router();
 
@@ -114,7 +115,7 @@ callRoutes.post(
         },
       });
 
-      if (!workflow || !workflow.twilioFlowSid) {
+      if (!workflow || (!workflow.twilioFlowSid && !workflow.fusionpbxDialplanUuid)) {
         throw new AppError('Workflow not found or not deployed', 404);
       }
 
@@ -143,20 +144,40 @@ callRoutes.post(
         },
       });
 
-      // Make call via Twilio
-      const workflowUrl = `${process.env.WEBHOOK_BASE_URL}/api/webhooks/execute-flow/${workflow.twilioFlowSid}`;
-      const twilioCallSid = await twilioService.makeCall(
-        phoneNumber.number,
-        to,
-        workflowUrl,
-        { callId: call.id },
-      );
+      let updatedCall;
 
-      // Update call with Twilio SID
-      const updatedCall = await prisma.call.update({
-        where: { id: call.id },
-        data: { twilioCallSid: twilioCallSid },
-      });
+      if (workflow.deploymentType === 'fusionpbx' && workflow.fusionpbxDialplanUuid) {
+        // Make call via FusionPBX
+        const fusionpbxCallUuid = await fusionpbxService.makeCall(
+          phoneNumber.number,
+          to,
+          workflow.fusionpbxDialplanUuid,
+          { callId: call.id },
+        );
+
+        // Update call with FusionPBX UUID
+        updatedCall = await prisma.call.update({
+          where: { id: call.id },
+          data: { fusionpbxCallUuid: fusionpbxCallUuid },
+        });
+      } else if (workflow.twilioFlowSid) {
+        // Make call via Twilio
+        const workflowUrl = `${process.env.WEBHOOK_BASE_URL}/api/webhooks/execute-flow/${workflow.twilioFlowSid}`;
+        const twilioCallSid = await twilioService.makeCall(
+          phoneNumber.number,
+          to,
+          workflowUrl,
+          { callId: call.id },
+        );
+
+        // Update call with Twilio SID
+        updatedCall = await prisma.call.update({
+          where: { id: call.id },
+          data: { twilioCallSid: twilioCallSid },
+        });
+      } else {
+        throw new AppError('No valid deployment found for workflow', 400);
+      }
 
       res.status(201).json({ call: updatedCall });
     } catch (error) {
