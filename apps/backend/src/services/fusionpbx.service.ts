@@ -6,6 +6,13 @@ const fusionpbxUsername = process.env.FUSIONPBX_USERNAME || 'admin';
 const fusionpbxPassword = process.env.FUSIONPBX_PASSWORD || 'admin';
 const fusionpbxDomain = process.env.FUSIONPBX_DOMAIN || 'localhost';
 
+// Configure axios with timeouts to prevent hanging
+const axiosInstance = axios.create({
+  timeout: 5000, // 5 second timeout
+  maxRedirects: 5,
+  validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+});
+
 if (!fusionpbxUrl) {
   logger.warn('FusionPBX credentials not configured');
 }
@@ -50,7 +57,7 @@ class FusionPBXService {
       let response;
       if (existingFlowId) {
         // Update existing dialplan
-        response = await axios.put(
+        response = await axiosInstance.put(
           `${this.baseUrl}/app/dialplans/dialplan_edit.php`,
           new URLSearchParams({
             ...dialplanData,
@@ -65,7 +72,7 @@ class FusionPBXService {
         );
       } else {
         // Create new dialplan
-        response = await axios.post(
+        response = await axiosInstance.post(
           `${this.baseUrl}/app/dialplans/dialplan_add.php`,
           new URLSearchParams(dialplanData),
           {
@@ -98,7 +105,7 @@ class FusionPBXService {
    */
   async deleteFlow(dialplanUuid: string): Promise<void> {
     try {
-      await axios.delete(`${this.baseUrl}/app/dialplans/dialplan_delete.php`, {
+      await axiosInstance.delete(`${this.baseUrl}/app/dialplans/dialplan_delete.php`, {
         data: new URLSearchParams({
           dialplan_uuid: dialplanUuid
         }),
@@ -138,7 +145,7 @@ class FusionPBXService {
         variables: JSON.stringify(metadata || {})
       };
 
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${this.baseUrl}/app/calls/call_originate.php`,
         new URLSearchParams(originateData),
         {
@@ -168,7 +175,7 @@ class FusionPBXService {
    */
   async getCall(callUuid: string) {
     try {
-      const response = await axios.get(`${this.baseUrl}/app/calls/call_details.php`, {
+      const response = await axiosInstance.get(`${this.baseUrl}/app/calls/call_details.php`, {
         params: { call_uuid: callUuid },
         headers: {
           'Authorization': `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`
@@ -187,7 +194,7 @@ class FusionPBXService {
    */
   async getExtensions() {
     try {
-      const response = await axios.get(`${this.baseUrl}/app/extensions/extensions.php`, {
+      const response = await axiosInstance.get(`${this.baseUrl}/app/extensions/extensions.php`, {
         headers: {
           'Authorization': `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`
         }
@@ -306,9 +313,7 @@ class FusionPBXService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const response = await axios.get(`${this.baseUrl}/login.php`, {
-        timeout: 5000
-      });
+      const response = await axiosInstance.get(`${this.baseUrl}/login.php`);
       
       logger.info('FusionPBX connection test successful', { status: response.status });
       return response.status === 200;
@@ -319,7 +324,22 @@ class FusionPBXService {
   }
 }
 
-export const fusionpbxService = new FusionPBXService();
+// Lazy initialization - only create when needed
+let _fusionpbxService: FusionPBXService | null = null;
+
+export function getFusionPBXService(): FusionPBXService {
+  if (!_fusionpbxService) {
+    _fusionpbxService = new FusionPBXService();
+  }
+  return _fusionpbxService;
+}
+
+// Export for backward compatibility, but it's lazy
+export const fusionpbxService = new Proxy({} as FusionPBXService, {
+  get(target, prop) {
+    return getFusionPBXService()[prop as keyof FusionPBXService];
+  }
+});
 
 
 

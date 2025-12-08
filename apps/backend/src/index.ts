@@ -2,21 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { errorHandler } from './middleware/error-handler.js';
-import { logger } from './utils/logger.js';
-import { authRoutes } from './routes/auth.routes.js';
-import { workflowRoutes } from './routes/workflow.routes.js';
-import { callRoutes } from './routes/call.routes.js';
-import { webhookRoutes } from './routes/webhook.routes.js';
-import { fusionpbxWebhookRoutes } from './routes/fusionpbx-webhook.routes.js';
-import { analyticsRoutes } from './routes/analytics.routes.js';
-import { phoneNumberRoutes } from './routes/phone-number.routes.js';
-import { recordingRoutes } from './routes/recording.routes.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
@@ -29,32 +19,75 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-  next();
-});
-
-// Health check
+// Health check - no dependencies, loads immediately
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/workflows', workflowRoutes);
-app.use('/api/calls', callRoutes);
-app.use('/api/webhooks', webhookRoutes);
-app.use('/api/fusionpbx-webhooks', fusionpbxWebhookRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/phone-numbers', phoneNumberRoutes);
-app.use('/api/recordings', recordingRoutes);
+// Lazy load routes - only import when API is accessed
+// This prevents blocking on startup
+let routesLoaded = false;
 
-// Error handling
-app.use(errorHandler);
+async function loadRoutes() {
+  if (routesLoaded) return;
+  
+  console.log('Loading routes...');
+  
+  const [
+    { errorHandler },
+    { logger },
+    { authRoutes },
+    { workflowRoutes },
+    { callRoutes },
+    { webhookRoutes },
+    { fusionpbxWebhookRoutes },
+    { analyticsRoutes },
+    { phoneNumberRoutes },
+    { recordingRoutes },
+  ] = await Promise.all([
+    import('./middleware/error-handler.js'),
+    import('./utils/logger.js'),
+    import('./routes/auth.routes.js'),
+    import('./routes/workflow.routes.js'),
+    import('./routes/call.routes.js'),
+    import('./routes/webhook.routes.js'),
+    import('./routes/fusionpbx-webhook.routes.js'),
+    import('./routes/analytics.routes.js'),
+    import('./routes/phone-number.routes.js'),
+    import('./routes/recording.routes.js'),
+  ]);
+
+  // Add request logging middleware BEFORE routes
+  app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.path}`, {
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+    next();
+  });
+
+  // Add routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/workflows', workflowRoutes);
+  app.use('/api/calls', callRoutes);
+  app.use('/api/webhooks', webhookRoutes);
+  app.use('/api/fusionpbx-webhooks', fusionpbxWebhookRoutes);
+  app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/phone-numbers', phoneNumberRoutes);
+  app.use('/api/recordings', recordingRoutes);
+
+  // Error handling MUST be last
+  app.use(errorHandler);
+
+  routesLoaded = true;
+  console.log('Routes loaded successfully');
+}
+
+// Load routes on any API request (but don't block startup)
+app.use('/api/*', async (req, res, next) => {
+  await loadRoutes();
+  next();
+});
 
 // 404 handler
 app.use((req, res) => {
@@ -62,9 +95,10 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  logger.info(`🚀 IVR Builder API server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚀 IVR Builder API server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Routes will load automatically on first API request`);
 });
 
 export default app;
-

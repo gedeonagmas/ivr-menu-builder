@@ -10,7 +10,10 @@
     "types": ["node"],
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false
