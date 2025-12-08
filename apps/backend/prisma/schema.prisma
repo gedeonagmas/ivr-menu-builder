@@ -64,6 +64,7 @@ model Workflow {
 
   organization    Organization  @relation(fields: [organizationId], references: [id])
   user            User          @relation(fields: [userId], references: [id])
+  phoneNumbers    PhoneNumber[] // Phone numbers associated with this workflow for inbound routing
   calls           Call[]
   deployments     Deployment[]
   recordings      Recording[]
@@ -92,6 +93,7 @@ model PhoneNumber {
   id            String   @id @default(uuid())
   number        String   @unique
   organizationId String
+  workflowId    String?  // Associated workflow for inbound routing
   twilioSid     String?  // Twilio Phone Number SID
   friendlyName  String?
   isActive      Boolean  @default(true)
@@ -99,10 +101,12 @@ model PhoneNumber {
   updatedAt     DateTime @updatedAt
 
   organization  Organization @relation(fields: [organizationId], references: [id])
+  workflow      Workflow?    @relation(fields: [workflowId], references: [id])
   calls         Call[]
 
   @@index([organizationId])
   @@index([number])
+  @@index([workflowId])
 }
 
 model Call {

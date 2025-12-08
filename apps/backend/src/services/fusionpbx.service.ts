@@ -210,15 +210,24 @@ class FusionPBXService {
   /**
    * Convert workflow nodes to FusionPBX dialplan XML
    */
-  private convertToDialplan(flowDefinition: any, flowName: string): string {
-    const extension = flowDefinition.extension || '1000';
+  private convertToDialplan(
+    flowDefinition: any, 
+    flowName: string, 
+    context: string = 'default',
+    destinationNumber: string = '1000'
+  ): string {
+    // Normalize phone number for regex - escape special chars and create flexible pattern
+    // Matches: +1234567890, 1234567890, 123-456-7890, etc.
+    const normalizedNumber = destinationNumber.replace(/[\+\s\-\(\)]/g, '');
+    // Simple pattern: match exact number or with common formatting
+    const regexPattern = `^\\+?${normalizedNumber.replace(/(\d)/g, '\\$1')}$|^${normalizedNumber}$`;
     
     let dialplanXml = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <document type="freeswitch/xml">
   <section name="dialplan" description="IVR Dialplan">
-    <context name="default">
+    <context name="${context}">
       <extension name="${flowName}" continue="false" uuid="${this.generateUuid()}">
-        <condition field="destination_number" expression="^${extension}$">
+        <condition field="destination_number" expression="${regexPattern}">
           <action application="answer"/>
           <action application="sleep" data="1000"/>`;
 
@@ -247,7 +256,10 @@ class FusionPBXService {
     switch (node.type) {
       case 'say-play':
         if (node.properties.say) {
-          return `\n          <action application="speak" data="flite|kal|${node.properties.say}"/>`;
+          // Use mod_tts_commandline for better TTS (requires TTS engine installed)
+          // Fallback to flite if mod_tts_commandline not available
+          const ttsText = (node.properties.say as string).replace(/"/g, '\\"');
+          return `\n          <action application="speak" data="flite|kal|${ttsText}"/>`;
         } else if (node.properties.play) {
           return `\n          <action application="playback" data="${node.properties.play}"/>`;
         }

@@ -25,6 +25,70 @@ phoneNumberRoutes.get('/', async (req: AuthRequest, res, next) => {
   }
 });
 
+// Create phone number directly (for FusionPBX extensions, etc.)
+phoneNumberRoutes.post(
+  '/',
+  [
+    body('number').isString().notEmpty(),
+    body('friendlyName').optional().isString(),
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { number, friendlyName } = req.body;
+
+      // Handle guest mode - create or get guest organization
+      let organizationId = req.user!.organizationId;
+      if (req.user!.role === 'GUEST' || !organizationId) {
+        // Get or create guest organization
+        let guestOrg = await prisma.organization.findFirst({
+          where: { subdomain: 'guest' },
+        });
+        if (!guestOrg) {
+          guestOrg = await prisma.organization.create({
+            data: {
+              name: 'Guest Organization',
+              subdomain: 'guest',
+            },
+          });
+        }
+        organizationId = guestOrg.id;
+      }
+
+      if (!organizationId) {
+        throw new AppError('Organization required', 400);
+      }
+
+      // Check if number already exists
+      const existing = await prisma.phoneNumber.findUnique({
+        where: { number },
+      });
+
+      if (existing) {
+        throw new AppError('Phone number already exists', 400);
+      }
+
+      // Create phone number
+      const phoneNumber = await prisma.phoneNumber.create({
+        data: {
+          number,
+          organizationId,
+          friendlyName: friendlyName || undefined,
+          isActive: true,
+        },
+      });
+
+      res.status(201).json({ phoneNumber });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // Purchase new phone number
 phoneNumberRoutes.post(
   '/purchase',

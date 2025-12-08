@@ -1,6 +1,6 @@
 import { DiagramModel } from '@workflow-builder/types/common';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 class ApiService {
   private getAuthToken(): string | null {

@@ -18,6 +18,21 @@ export const authenticate = async (
   next: NextFunction,
 ) => {
   try {
+    // Check for guest mode header
+    const isGuestMode = req.headers['x-guest-mode'] === 'true';
+    
+    if (isGuestMode) {
+      // Create a temporary guest user for guest mode
+      // Guest mode allows limited operations without full authentication
+      req.user = {
+        id: 'guest-user',
+        email: 'guest@guest.local',
+        organizationId: 'guest-org',
+        role: 'GUEST',
+      };
+      return next();
+    }
+
     const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {

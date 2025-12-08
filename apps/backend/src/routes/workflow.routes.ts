@@ -133,7 +133,7 @@ workflowRoutes.put(
 // Deploy workflow to Twilio or FusionPBX
 workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
   try {
-    const { deploymentType = 'fusionpbx' } = req.body; // Default to FusionPBX
+    const { deploymentType = 'fusionpbx', phoneNumberId } = req.body; // Default to FusionPBX
 
     const workflow = await prisma.workflow.findFirst({
       where: {
@@ -152,10 +152,29 @@ workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
       // Deploy to FusionPBX
       const fusionpbxFlow = await workflowExecutionEngine.convertToFusionPBXFlow(workflow.diagram as any);
 
+      // If phoneNumberId is provided, get the phone number for inbound routing
+      let phoneNumber: string | undefined;
+      let context: 'default' | 'public' = 'default';
+      if (phoneNumberId) {
+        const phone = await prisma.phoneNumber.findFirst({
+          where: {
+            id: phoneNumberId,
+            organizationId: req.user!.organizationId || undefined,
+          },
+        });
+        if (phone) {
+          phoneNumber = phone.number;
+          // If it's a 4-digit extension (like 2000), use 'default' context
+          // Otherwise use 'public' for full phone numbers
+          context = /^\d{3,4}$/.test(phone.number) ? 'default' : 'public';
+        }
+      }
+
       const fusionpbxDialplanUuid = await fusionpbxService.createOrUpdateFlow(
         workflow.fusionpbxDialplanUuid || undefined,
         workflow.name,
         fusionpbxFlow,
+        phoneNumber ? { phoneNumber, context } : undefined,
       );
 
       // Update workflow
@@ -169,6 +188,14 @@ workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
         },
       });
 
+      // Associate phone number with workflow if provided
+      if (phoneNumberId) {
+        await prisma.phoneNumber.update({
+          where: { id: phoneNumberId },
+          data: { workflowId: workflow.id },
+        });
+      }
+
       // Create deployment record
       await prisma.deployment.create({
         data: {
@@ -179,7 +206,7 @@ workflowRoutes.post('/:id/deploy', async (req: AuthRequest, res, next) => {
         },
       });
 
-      res.json({ workflow: updated, fusionpbxDialplanUuid });
+      res.json({ workflow: updated, fusionpbxDialplanUuid, phoneNumber });
     } else {
       // Deploy to Twilio (existing functionality)
       const twilioFlow = await workflowExecutionEngine.convertToTwilioFlow(workflow.diagram as any);
