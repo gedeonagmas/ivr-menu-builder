@@ -1,0 +1,17 @@
+.modalWrapper {
+  position: relative;
+}
+
+/* Target the modal overlay/backdrop to ensure proper z-index stacking */
+.modalWrapper :global([class*="Modal"]) {
+  z-index: inherit !important;
+}
+
+.modalWrapper :global([class*="overlay"]) {
+  z-index: inherit !important;
+}
+
+.modalWrapper :global([class*="backdrop"]) {
+  z-index: inherit !important;
+}
+

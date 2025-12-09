@@ -1,10 +1,10 @@
 import { localStorageKey } from '@workflow-builder/types/consts';
 import { showSnackbar } from '@/utils/show-snackbar';
 import { SnackbarType } from '@synergycodes/axiom';
-import { DiagramState } from '../diagram-slice';
+import { DiagramState, SetDiagramState } from '../diagram-slice';
 import { apiService } from '@/services/api.service';
 
-export function saveDiagram(get: () => DiagramState) {
+export function saveDiagram(get: () => DiagramState, set: SetDiagramState) {
   return async (showNotification = true) => {
     try {
       const { reactFlowInstance, documentName, layoutDirection, currentWorkflowId } = get();
@@ -34,7 +34,7 @@ export function saveDiagram(get: () => DiagramState) {
               data as any,
             );
             // Store workflow ID for future updates
-            // This would typically be stored in the store
+            set({ currentWorkflowId: result.workflow.id });
           }
         } catch (apiError) {
           // Fallback to localStorage if API fails

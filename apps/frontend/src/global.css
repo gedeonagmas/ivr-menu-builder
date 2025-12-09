@@ -65,4 +65,13 @@
   .react-flow.is-segment-dragged * {
     cursor: copy;
   }
+
+  /* Ensure modals stack properly with z-index */
+  /* This targets the modal overlay/backdrop created by axiom Modal component */
+  body > div[class*="Modal"],
+  body > div[class*="modal"],
+  body > div[class*="overlay"],
+  body > div[class*="backdrop"] {
+    /* Will be overridden by inline styles from modal provider */
+  }
 }

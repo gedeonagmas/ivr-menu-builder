@@ -3,7 +3,7 @@ import Logo from '../../../assets/workflow-builder-logo.svg?react';
 import { NavButton } from '@synergycodes/axiom';
 import { Icon } from '@workflow-builder/icons';
 import { useTranslation } from 'react-i18next';
-import { Pause, CloudArrowUp } from '@phosphor-icons/react';
+import { Pause, CloudArrowUp, Plus, ListBullets, Eraser } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { apiService } from '@/services/api.service';
 import useStore from '@/store/store';
@@ -20,9 +20,12 @@ interface ToolbarProps {
   isReadOnlyMode: boolean;
   isSimulating: boolean;
   isPaused: boolean;
+  onNewFlow: () => void;
+  onOpenWorkflowList: () => void;
+  onClearCanvas: () => void;
 }
 
-export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, canRedo, isReadOnlyMode, isSimulating, isPaused }: ToolbarProps) {
+export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, canRedo, isReadOnlyMode, isSimulating, isPaused, onNewFlow, onOpenWorkflowList, onClearCanvas }: ToolbarProps) {
   const { t } = useTranslation(undefined, { keyPrefix: 'tooltips' });
   const [isDeploying, setIsDeploying] = useState(false);
   const documentName = useStore((state) => state.documentName);
@@ -87,6 +90,15 @@ export function Toolbar({ onSave, onOpen, onSimulate, onUndo, onRedo, canUndo, c
     <div className={styles['toolbar']}>
       <Logo className={styles['logo']} />
       <div className={styles['nav-segment']}>
+        <NavButton onClick={onNewFlow} tooltip="New Flow">
+          <Plus size={20} />
+        </NavButton>
+        <NavButton onClick={onOpenWorkflowList} tooltip="My Workflows">
+          <ListBullets size={20} />
+        </NavButton>
+        <NavButton onClick={onClearCanvas} disabled={isReadOnlyMode} tooltip="Clear Canvas">
+          <Eraser size={20} />
+        </NavButton>
         <NavButton onClick={onSave} tooltip={t('save')}>
           <Icon name="FloppyDisk" />
         </NavButton>

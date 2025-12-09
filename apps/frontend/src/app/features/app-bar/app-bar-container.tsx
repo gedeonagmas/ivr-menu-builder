@@ -12,6 +12,11 @@ import { useElkLayout } from '@/hooks/use-elk-layout/use-elk-layout';
 import { useNoAccessModal } from '@/features/modals/no-access/use-no-access-modal';
 import { useTheme } from '../../hooks/use-theme';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useWorkflowListModal } from '@/features/modals/workflow-list/use-workflow-list-modal';
+import { useNewFlowModal } from '@/features/modals/new-flow/use-new-flow-modal';
+import { useConfirmationModal } from '@/features/modals/confirmation/use-confirmation-modal';
+import { showSnackbar } from '@/utils/show-snackbar';
+import { SnackbarType } from '@synergycodes/axiom';
 
 export function AppBarContainer() {
   const documentName = useStore((state) => state.documentName || '');
@@ -27,6 +32,11 @@ export function AppBarContainer() {
   const { openNoAccessModal } = useNoAccessModal();
   const { theme, toggleTheme } = useTheme();
   const { isGuest, logout } = useAuth();
+  const { openWorkflowList } = useWorkflowListModal();
+  const { openNewFlow } = useNewFlowModal();
+  const { openConfirmation } = useConfirmationModal();
+  const createNewFlow = useStore((store) => store.createNewFlow);
+  const clearCanvas = useStore((store) => store.clearCanvas);
   
   const startSimulation = useStore((store) => store.startSimulation);
   const stopSimulation = useStore((store) => store.stopSimulation);
@@ -39,6 +49,39 @@ export function AppBarContainer() {
 
   function handleSave() {
     saveDiagram(true);
+  }
+
+  function handleNewFlow() {
+    openNewFlow({
+      message: 'Create a new flow? Any unsaved changes will be lost.',
+      confirmLabel: 'Create',
+      cancelLabel: 'Cancel',
+      title: 'New Workflow',
+      onConfirm: (name) => {
+        createNewFlow(name);
+        showSnackbar({
+          title: `Workflow "${name}" created`,
+          variant: SnackbarType.SUCCESS,
+        });
+      },
+    });
+  }
+
+  function handleClearCanvas() {
+    openConfirmation({
+      message: 'Clear the canvas? This will remove all nodes and edges. The workflow will remain saved.',
+      confirmLabel: 'Clear Canvas',
+      cancelLabel: 'Cancel',
+      variant: 'warning',
+      title: 'Clear Canvas',
+      onConfirm: () => {
+        clearCanvas();
+        showSnackbar({
+          title: 'Canvas cleared',
+          variant: SnackbarType.SUCCESS,
+        });
+      },
+    });
   }
 
   function handleSimulate() {
@@ -77,6 +120,9 @@ export function AppBarContainer() {
         isReadOnlyMode={isReadOnlyMode}
         isSimulating={isSimulating}
         isPaused={isPaused}
+        onNewFlow={handleNewFlow}
+        onOpenWorkflowList={openWorkflowList}
+        onClearCanvas={handleClearCanvas}
       />
       <ProjectSelection
         documentName={documentName}

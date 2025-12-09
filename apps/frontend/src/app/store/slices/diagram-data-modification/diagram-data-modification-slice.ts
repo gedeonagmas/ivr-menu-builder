@@ -25,9 +25,15 @@ export function useDiagramDataModificationSlice(
 ): DiagramDataModificationState {
   return {
     onNodesChange: (changes) => {
-      set({
-        nodes: applyNodeChanges(changes, get().nodes),
-      });
+      const currentNodes = get().nodes;
+      const updatedNodes = applyNodeChanges(changes, currentNodes);
+      
+      // Ensure nodes are actually updated (defensive check)
+      if (updatedNodes !== currentNodes || changes.some(change => change.type === 'add')) {
+        set({
+          nodes: updatedNodes,
+        });
+      }
     },
     onEdgesChange: (changes) => {
       set({

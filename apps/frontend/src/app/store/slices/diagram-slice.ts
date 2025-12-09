@@ -14,13 +14,17 @@ export type DiagramState = {
   edges: WorkflowBuilderEdge[];
   reactFlowInstance: WorkflowBuilderReactFlowInstance | null;
   documentName: string | null;
+  currentWorkflowId: string | null;
   isReadOnlyMode: boolean;
   layoutDirection: LayoutDirection;
   showGrid: boolean;
   onConnect: OnConnect;
   onInit: (instance: WorkflowBuilderReactFlowInstance) => void;
   setDocumentName: (name: string) => void;
-  setDiagramModel: (model?: DiagramModel, fitView?: boolean) => void;
+  setDiagramModel: (model?: DiagramModel, workflowId?: string | null) => void;
+  setCurrentWorkflowId: (id: string | null) => void;
+  createNewFlow: (name?: string) => void;
+  clearCanvas: () => void;
   setToggleReadOnlyMode: (value?: boolean) => void;
   setLayoutDirection: (value: LayoutDirection) => void;
   setShowGrid: (value: boolean) => void;
@@ -37,6 +41,7 @@ export function useDiagramSlice(set: SetDiagramState, get: GetDiagramState) {
     edges: [],
     reactFlowInstance: null,
     documentName: null,
+    currentWorkflowId: null,
     isReadOnlyMode: false,
     layoutDirection: 'RIGHT' as LayoutDirection,
     showGrid: true,
@@ -59,7 +64,7 @@ export function useDiagramSlice(set: SetDiagramState, get: GetDiagramState) {
         reactFlowInstance: instance,
       });
     },
-    setDiagramModel: async (model?: DiagramModel) => {
+    setDiagramModel: async (model?: DiagramModel, workflowId?: string | null) => {
       const nodes = model?.diagram.nodes || [];
       const edges = model?.diagram.edges || [];
       const documentName = model?.name || 'Untitled';
@@ -69,6 +74,7 @@ export function useDiagramSlice(set: SetDiagramState, get: GetDiagramState) {
         nodes,
         layoutDirection,
         documentName,
+        currentWorkflowId: workflowId ?? null,
       });
 
       set({
@@ -79,6 +85,41 @@ export function useDiagramSlice(set: SetDiagramState, get: GetDiagramState) {
       set({
         documentName: name,
       });
+    },
+    setCurrentWorkflowId: (id: string | null) => {
+      set({
+        currentWorkflowId: id,
+      });
+    },
+    createNewFlow: (name?: string) => {
+      // Clear nodes and edges first
+      set({ nodes: [] });
+      set({ edges: [] });
+      // Set document name and workflow ID
+      set({
+        documentName: name || 'Untitled',
+        currentWorkflowId: null,
+      });
+      // Reset viewport after a short delay to ensure state is updated
+      setTimeout(() => {
+        const instance = get().reactFlowInstance;
+        if (instance) {
+          instance.setViewport({ x: 0, y: 0, zoom: 1 });
+        }
+      }, 0);
+    },
+    clearCanvas: () => {
+      // Clear nodes and edges, but preserve workflow ID and document name
+      // Use separate set calls to avoid state update conflicts
+      set({ nodes: [] });
+      set({ edges: [] });
+      // Reset viewport to center after state updates
+      setTimeout(() => {
+        const instance = get().reactFlowInstance;
+        if (instance) {
+          instance.setViewport({ x: 0, y: 0, zoom: 1 });
+        }
+      }, 0);
     },
     setToggleReadOnlyMode: (value?: boolean) => {
       set({

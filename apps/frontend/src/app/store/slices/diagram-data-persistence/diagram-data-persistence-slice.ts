@@ -12,7 +12,7 @@ export type DiagramDataPersistenceState = {
 export function useDiagramDataPersistenceSlice(set: SetDiagramState, get: GetDiagramState) {
   return {
     loadDiagramStatus: StatusType.Idle,
-    saveDiagram: saveDiagram(get),
+    saveDiagram: saveDiagram(get, set),
     loadDiagram: loadDiagram(set, get),
   };
 }

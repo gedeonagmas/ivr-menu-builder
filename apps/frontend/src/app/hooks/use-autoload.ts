@@ -25,7 +25,7 @@ export function useAutoload() {
 
     try {
       const model: DiagramModel = JSON.parse(stringifiedModel);
-      setDiagramModel(model, false);
+      setDiagramModel(model, null);
       hasLoaded.current = true;
 
       showSnackbar({
