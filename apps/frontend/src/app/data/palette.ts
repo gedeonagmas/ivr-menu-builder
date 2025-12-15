@@ -14,6 +14,7 @@ import { conditionsNode } from './nodes/conditions/conditions';
 import { executeSWMLNode } from './nodes/execute-swml/execute-swml';
 import { setVariablesNode } from './nodes/set-variables/set-variables';
 import { unsetVariablesNode } from './nodes/unset-variables/unset-variables';
+import { ivrMenuNode } from './nodes/ivr-menu/ivr-menu';
 
 export const paletteData: PaletteItem[] = [
   answerCallNode,
@@ -31,4 +32,5 @@ export const paletteData: PaletteItem[] = [
   setVariablesNode,
   unsetVariablesNode,
   aiAgent,
+  ivrMenuNode,
 ];

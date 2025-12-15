@@ -11,63 +11,64 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String
-  name          String?
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
   organizationId String?
-  role          UserRole  @default(USER)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role           UserRole @default(USER)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization  Organization? @relation(fields: [organizationId], references: [id])
-  workflows     Workflow[]
-  calls         Call[]
-  recordings    Recording[]
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  workflows    Workflow[]
+  calls        Call[]
+  recordings   Recording[]
 
   @@index([email])
   @@index([organizationId])
 }
 
 model Organization {
-  id          String   @id @default(uuid())
-  name        String
-  subdomain   String   @unique
-  settings    Json?    // Store org-specific settings
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String   @unique
+  settings  Json? // Store org-specific settings
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users       User[]
-  workflows   Workflow[]
-  calls       Call[]
+  users        User[]
+  workflows    Workflow[]
+  calls        Call[]
   phoneNumbers PhoneNumber[]
 
   @@index([subdomain])
 }
 
 model Workflow {
-  id              String        @id @default(uuid())
-  name            String
-  description     String?
-  diagram         Json          // ReactFlow diagram data
-  status          WorkflowStatus @default(DRAFT)
-  version         Int           @default(1)
-  organizationId  String
-  userId          String
-  twilioFlowSid   String?       // Twilio Studio Flow SID when deployed
+  id                    String         @id @default(uuid())
+  name                  String
+  description           String?
+  diagram               Json // ReactFlow diagram data
+  status                WorkflowStatus @default(DRAFT)
+  version               Int            @default(1)
+  organizationId        String
+  userId                String
+  twilioFlowSid         String? // Twilio Studio Flow SID when deployed
   fusionpbxDialplanUuid String? // FusionPBX Dialplan UUID when deployed
-  deploymentType  String        @default("twilio") // "twilio" or "fusionpbx"
-  isActive        Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  fusionpbxIvrMenuUuid  String? // FusionPBX IVR Menu UUID when deployed
+  deploymentType        String         @default("twilio") // "twilio" or "fusionpbx"
+  isActive              Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  organization    Organization  @relation(fields: [organizationId], references: [id])
-  user            User          @relation(fields: [userId], references: [id])
-  phoneNumbers    PhoneNumber[] // Phone numbers associated with this workflow for inbound routing
-  calls           Call[]
-  deployments     Deployment[]
-  recordings      Recording[]
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  phoneNumbers PhoneNumber[] // Phone numbers associated with this workflow for inbound routing
+  calls        Call[]
+  deployments  Deployment[]
+  recordings   Recording[]
 
   @@index([organizationId])
   @@index([userId])
@@ -76,33 +77,33 @@ model Workflow {
 }
 
 model Deployment {
-  id          String   @id @default(uuid())
+  id         String           @id @default(uuid())
   workflowId String
-  version     Int
-  deployedAt  DateTime @default(now())
-  deployedBy  String
-  status      DeploymentStatus @default(SUCCESS)
-  error       String?
+  version    Int
+  deployedAt DateTime         @default(now())
+  deployedBy String
+  status     DeploymentStatus @default(SUCCESS)
+  error      String?
 
-  workflow    Workflow @relation(fields: [workflowId], references: [id])
+  workflow Workflow @relation(fields: [workflowId], references: [id])
 
   @@index([workflowId])
 }
 
 model PhoneNumber {
-  id            String   @id @default(uuid())
-  number        String   @unique
+  id             String   @id @default(uuid())
+  number         String   @unique
   organizationId String
-  workflowId    String?  // Associated workflow for inbound routing
-  twilioSid     String?  // Twilio Phone Number SID
-  friendlyName  String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  workflowId     String? // Associated workflow for inbound routing
+  twilioSid      String? // Twilio Phone Number SID
+  friendlyName   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  workflow      Workflow?    @relation(fields: [workflowId], references: [id])
-  calls         Call[]
+  organization Organization @relation(fields: [organizationId], references: [id])
+  workflow     Workflow?    @relation(fields: [workflowId], references: [id])
+  calls        Call[]
 
   @@index([organizationId])
   @@index([number])
@@ -110,27 +111,27 @@ model PhoneNumber {
 }
 
 model Call {
-  id              String      @id @default(uuid())
-  workflowId      String?
-  phoneNumberId  String?
-  organizationId  String
-  userId          String?
-  twilioCallSid   String?     @unique
-  fusionpbxCallUuid String?   @unique // FusionPBX Call UUID
-  fromNumber      String
-  toNumber        String
-  status          CallStatus  @default(INITIATED)
-  duration        Int?        // in seconds
-  startedAt       DateTime    @default(now())
-  endedAt         DateTime?
-  metadata        Json?       // Store call metadata, variables, etc.
+  id                String     @id @default(uuid())
+  workflowId        String?
+  phoneNumberId     String?
+  organizationId    String
+  userId            String?
+  twilioCallSid     String?    @unique
+  fusionpbxCallUuid String?    @unique // FusionPBX Call UUID
+  fromNumber        String
+  toNumber          String
+  status            CallStatus @default(INITIATED)
+  duration          Int? // in seconds
+  startedAt         DateTime   @default(now())
+  endedAt           DateTime?
+  metadata          Json? // Store call metadata, variables, etc.
 
-  workflow        Workflow?    @relation(fields: [workflowId], references: [id])
-  phoneNumber     PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  user            User?        @relation(fields: [userId], references: [id])
-  recordings      Recording[]
-  events          CallEvent[]
+  workflow     Workflow?    @relation(fields: [workflowId], references: [id])
+  phoneNumber  PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+  recordings   Recording[]
+  events       CallEvent[]
 
   @@index([workflowId])
   @@index([organizationId])
@@ -141,36 +142,36 @@ model Call {
 }
 
 model CallEvent {
-  id          String   @id @default(uuid())
-  callId      String
-  eventType   String   // 'node-executed', 'input-received', 'error', etc.
-  nodeId      String?
-  nodeType    String?
-  data        Json?    // Event-specific data
-  timestamp   DateTime @default(now())
+  id        String   @id @default(uuid())
+  callId    String
+  eventType String // 'node-executed', 'input-received', 'error', etc.
+  nodeId    String?
+  nodeType  String?
+  data      Json? // Event-specific data
+  timestamp DateTime @default(now())
 
-  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
 
   @@index([callId])
   @@index([timestamp])
 }
 
 model Recording {
-  id            String   @id @default(uuid())
-  callId       String?
-  workflowId   String?
-  userId       String
+  id             String   @id @default(uuid())
+  callId         String?
+  workflowId     String?
+  userId         String
   organizationId String
-  twilioSid    String?  @unique
-  fusionpbxSid String?  @unique // FusionPBX Recording UUID
-  url          String?  // Storage URL (S3, etc.)
-  duration     Int?     // in seconds
-  transcription String? // Text transcription
-  createdAt    DateTime @default(now())
+  twilioSid      String?  @unique
+  fusionpbxSid   String?  @unique // FusionPBX Recording UUID
+  url            String? // Storage URL (S3, etc.)
+  duration       Int? // in seconds
+  transcription  String? // Text transcription
+  createdAt      DateTime @default(now())
 
-  call         Call?    @relation(fields: [callId], references: [id])
-  workflow     Workflow? @relation(fields: [workflowId], references: [id])
-  user         User      @relation(fields: [userId], references: [id])
+  call     Call?     @relation(fields: [callId], references: [id])
+  workflow Workflow? @relation(fields: [workflowId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
 
   @@index([callId])
   @@index([organizationId])
@@ -179,13 +180,13 @@ model Recording {
 }
 
 model Analytics {
-  id            String   @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String
-  workflowId   String?
-  date         DateTime @default(now())
-  metricType   String   // 'call-volume', 'completion-rate', 'avg-duration', etc.
-  value        Float
-  metadata     Json?
+  workflowId     String?
+  date           DateTime @default(now())
+  metricType     String // 'call-volume', 'completion-rate', 'avg-duration', etc.
+  value          Float
+  metadata       Json?
 
   @@index([organizationId])
   @@index([workflowId])
@@ -221,4 +222,3 @@ enum CallStatus {
   NO_ANSWER
   CANCELED
 }
-

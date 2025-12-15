@@ -44,6 +44,66 @@ export const pl = {
       label: 'Wyzwalaj',
       description: 'Inicjuj przepływy pracy',
     },
+    answerCall: {
+      label: 'Odpowiedz na połączenie',
+      description: 'Odpowiedz na przychodzące połączenie telefoniczne',
+    },
+    hangUpCall: {
+      label: 'Rozłącz połączenie',
+      description: 'Zakończ połączenie',
+    },
+    playAudioTTS: {
+      label: 'Odtwórz audio lub TTS',
+      description: 'Odtwórz plik audio lub wiadomość tekst-na-mowę',
+    },
+    sendSMS: {
+      label: 'Wyślij SMS',
+      description: 'Wyślij wiadomość SMS',
+    },
+    gatherInput: {
+      label: 'Zbierz dane wejściowe',
+      description: 'Zbierz dane wejściowe z dynamicznymi opcjami menu',
+    },
+    ivrMenu: {
+      label: 'Menu IVR',
+      description: 'Utwórz menu IVR z opcjami i miejscami docelowymi',
+    },
+    forwardToPhone: {
+      label: 'Przekieruj na telefon',
+      description: 'Przekieruj połączenie na numer telefonu ze statusami połączeń',
+    },
+    startCallRecording: {
+      label: 'Rozpocznij nagrywanie połączenia',
+      description: 'Rozpocznij nagrywanie połączenia',
+    },
+    stopCallRecording: {
+      label: 'Zatrzymaj nagrywanie połączenia',
+      description: 'Zatrzymaj nagrywanie połączenia',
+    },
+    voicemailRecording: {
+      label: 'Nagrywanie poczty głosowej',
+      description: 'Nagraj wiadomość poczty głosowej',
+    },
+    request: {
+      label: 'Żądanie',
+      description: 'Wykonaj żądanie HTTP ze statusami warunków',
+    },
+    conditions: {
+      label: 'Warunki',
+      description: 'Oceń warunki z dynamicznymi rozgałęzieniami',
+    },
+    executeSWML: {
+      label: 'Wykonaj SWML',
+      description: 'Wykonaj skrypt SWML',
+    },
+    setVariables: {
+      label: 'Ustaw zmienne',
+      description: 'Ustaw wartości zmiennych',
+    },
+    unsetVariables: {
+      label: 'Usuń zmienne',
+      description: 'Usuń zmienne',
+    },
   },
   propertiesBar: {
     label: 'Właściwości',
@@ -97,6 +157,10 @@ export const pl = {
     importDiagram: 'Importuj plik',
     save: 'Zapisz',
     changeLanguage: 'Zmień język',
+    simulate: 'Symuluj',
+    pause: 'Wstrzymaj',
+    resume: 'Wznów',
+    deploy: 'Wdróż',
   },
   snackbar: {
     saveDiagramSuccess: 'Diagram został pomyślnie zapisany',

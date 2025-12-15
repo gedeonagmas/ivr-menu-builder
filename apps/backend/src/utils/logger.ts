@@ -20,21 +20,20 @@ const transports: winston.transport[] = [
   }),
 ];
 
-// Only add file transports in production and if logs directory exists
-if (process.env.NODE_ENV === 'production') {
-  const logsDir = path.join(process.cwd(), 'logs');
-  try {
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    transports.push(
-      new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-      new winston.transports.File({ filename: 'logs/combined.log' }),
-    );
-  } catch (error) {
-    // If we can't create logs directory, just use console
-    console.warn('Could not create logs directory, using console only');
+// Always enable file logging for easier debugging
+const logsDir = path.join(process.cwd(), 'logs');
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
   }
+  transports.push(
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  );
+  console.log(`📝 File logging enabled: logs/combined.log and logs/error.log`);
+} catch (error) {
+  // If we can't create logs directory, just use console
+  console.warn('Could not create logs directory, using console only');
 }
 
 export const logger = winston.createLogger({

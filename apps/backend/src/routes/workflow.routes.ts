@@ -6,6 +6,7 @@ import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { workflowExecutionEngine } from '../services/workflow-execution-engine.js';
 import { twilioService } from '../services/twilio.service.js';
 import { fusionpbxService } from '../services/fusionpbx.service.js';
+import { logger } from '../utils/logger.js';
 
 export const workflowRoutes = Router();
 
@@ -74,6 +75,13 @@ workflowRoutes.post(
 
       const { name, description, diagram } = req.body;
 
+      logger.info('POST /api/workflows - Creating workflow', {
+        name,
+        nodeCount: diagram?.nodes?.length || 0,
+        edgeCount: diagram?.edges?.length || 0,
+        nodeTypes: diagram?.nodes?.map((n: any) => n.data?.type) || []
+      });
+
       const workflow = await prisma.workflow.create({
         data: {
           name,
@@ -83,6 +91,100 @@ workflowRoutes.post(
           userId: req.user!.id,
         },
       });
+
+      // Create IVR menu in FusionPBX if diagram has gather-input nodes with menuOptions
+      try {
+        logger.info('Checking for IVR menu nodes in workflow', {
+          nodeCount: diagram.nodes?.length || 0,
+          nodes: diagram.nodes?.map((n: any) => ({
+            id: n.id,
+            type: n.data?.type,
+            hasMenuOptions: !!n.data?.properties?.menuOptions,
+            extension: n.data?.properties?.extension,
+            menuOptionsType: typeof n.data?.properties?.menuOptions,
+            menuOptionsCount: Array.isArray(n.data?.properties?.menuOptions) ? n.data.properties.menuOptions.length : 
+                           (typeof n.data?.properties?.menuOptions === 'string' ? 'string' : 0)
+          }))
+        });
+
+        // Check for ivr-menu nodes or gather-input nodes with menuOptions
+        const ivrMenuNode = diagram.nodes?.find((n: any) => n.data?.type === 'ivr-menu');
+        const hasGatherInputWithMenu = diagram.nodes?.some((n: any) => {
+          if (n.data?.type !== 'gather-input') return false;
+          
+          const menuOptions = n.data?.properties?.menuOptions;
+          if (!menuOptions) return false;
+          
+          // Handle both string (JSON) and array formats
+          let parsedOptions: any[] = [];
+          if (typeof menuOptions === 'string') {
+            try {
+              parsedOptions = JSON.parse(menuOptions);
+            } catch (e) {
+              logger.warn('Failed to parse menuOptions as JSON', { error: e, menuOptions });
+              return false;
+            }
+          } else if (Array.isArray(menuOptions)) {
+            parsedOptions = menuOptions;
+          } else {
+            return false;
+          }
+          
+          return parsedOptions.length > 0;
+        });
+
+        const hasIvrMenu = !!ivrMenuNode;
+        logger.info('IVR menu check result', { 
+          hasIvrMenu, 
+          hasGatherInputWithMenu, 
+          ivrMenuNodeId: ivrMenuNode?.id,
+          ivrMenuNodeProps: ivrMenuNode ? {
+            extension: ivrMenuNode.data?.properties?.extension,
+            hasMenuOptions: !!ivrMenuNode.data?.properties?.menuOptions,
+            menuOptionsType: typeof ivrMenuNode.data?.properties?.menuOptions
+          } : null
+        });
+
+        if (hasIvrMenu || hasGatherInputWithMenu) {
+          // If we have an ivr-menu node, use its properties
+          let extension = '1000';
+          let context = 'default';
+          let menuName = name;
+          
+          if (ivrMenuNode) {
+            const props = ivrMenuNode.data?.properties || {};
+            extension = props.extension || extension;
+            context = props.context || context;
+            menuName = props.label || name;
+          }
+          
+          const ivrMenuUuid = await fusionpbxService.createOrUpdateIvrMenu(
+            workflow.fusionpbxIvrMenuUuid || undefined,
+            menuName,
+            diagram,
+            extension,
+            context,
+          );
+
+          // Update workflow with IVR menu UUID
+          await prisma.workflow.update({
+            where: { id: workflow.id },
+            data: { fusionpbxIvrMenuUuid: ivrMenuUuid },
+          });
+
+          workflow.fusionpbxIvrMenuUuid = ivrMenuUuid;
+        }
+      } catch (ivrError: any) {
+        // Log error but don't fail the workflow creation
+        logger.error('Failed to create IVR menu', { 
+          error: ivrError.message,
+          stack: ivrError.stack,
+          response: ivrError.response?.data,
+          status: ivrError.response?.status,
+          workflowId: workflow.id,
+          diagram: JSON.stringify(diagram).substring(0, 200)
+        });
+      }
 
       res.status(201).json({ workflow });
     } catch (error) {
@@ -113,6 +215,9 @@ workflowRoutes.put(
         throw new AppError('Workflow not found', 404);
       }
 
+      const updatedDiagram = req.body.diagram || workflow.diagram;
+      const updatedName = req.body.name || workflow.name;
+
       const updated = await prisma.workflow.update({
         where: { id: req.params.id },
         data: {
@@ -122,6 +227,84 @@ workflowRoutes.put(
           version: workflow.version + 1,
         },
       });
+
+      // Update IVR menu in FusionPBX if diagram has ivr-menu nodes or gather-input nodes with menuOptions
+      try {
+        const ivrMenuNode = updatedDiagram.nodes?.find((n: any) => n.data?.type === 'ivr-menu');
+        const hasGatherInputWithMenu = updatedDiagram.nodes?.some((n: any) => {
+          if (n.data?.type !== 'gather-input') return false;
+          
+          const menuOptions = n.data?.properties?.menuOptions;
+          if (!menuOptions) return false;
+          
+          // Handle both string (JSON) and array formats
+          let parsedOptions: any[] = [];
+          if (typeof menuOptions === 'string') {
+            try {
+              parsedOptions = JSON.parse(menuOptions);
+            } catch (e) {
+              logger.warn('Failed to parse menuOptions as JSON', { error: e, menuOptions });
+              return false;
+            }
+          } else if (Array.isArray(menuOptions)) {
+            parsedOptions = menuOptions;
+          } else {
+            return false;
+          }
+          
+          return parsedOptions.length > 0;
+        });
+
+        const hasIvrMenu = !!ivrMenuNode;
+        if (hasIvrMenu || hasGatherInputWithMenu) {
+          // If we have an ivr-menu node, use its properties
+          let extension = '1000';
+          let context = 'default';
+          let menuName = updatedName;
+          
+          if (ivrMenuNode) {
+            const props = ivrMenuNode.data?.properties || {};
+            extension = props.extension || extension;
+            context = props.context || context;
+            menuName = props.label || updatedName;
+          }
+          
+          const ivrMenuUuid = await fusionpbxService.createOrUpdateIvrMenu(
+            workflow.fusionpbxIvrMenuUuid || undefined,
+            menuName,
+            updatedDiagram,
+            extension,
+            context,
+          );
+
+          // Update workflow with IVR menu UUID if it changed
+          if (ivrMenuUuid !== workflow.fusionpbxIvrMenuUuid) {
+            await prisma.workflow.update({
+              where: { id: workflow.id },
+              data: { fusionpbxIvrMenuUuid: ivrMenuUuid },
+            });
+            updated.fusionpbxIvrMenuUuid = ivrMenuUuid;
+          }
+        } else if (workflow.fusionpbxIvrMenuUuid) {
+          // If menu options were removed, delete the IVR menu
+          await fusionpbxService.deleteIvrMenu(workflow.fusionpbxIvrMenuUuid);
+          await prisma.workflow.update({
+            where: { id: workflow.id },
+            data: { fusionpbxIvrMenuUuid: null },
+          });
+          updated.fusionpbxIvrMenuUuid = null;
+        }
+      } catch (ivrError: any) {
+        // Log error but don't fail the workflow update
+        logger.error('Failed to update IVR menu', { 
+          error: ivrError.message,
+          stack: ivrError.stack,
+          response: ivrError.response?.data,
+          status: ivrError.response?.status,
+          workflowId: workflow.id,
+          diagram: JSON.stringify(updatedDiagram).substring(0, 200)
+        });
+      }
 
       res.json({ workflow: updated });
     } catch (error) {
@@ -265,6 +448,9 @@ workflowRoutes.delete('/:id', async (req: AuthRequest, res, next) => {
     }
     if (workflow.fusionpbxDialplanUuid) {
       await fusionpbxService.deleteFlow(workflow.fusionpbxDialplanUuid);
+    }
+    if (workflow.fusionpbxIvrMenuUuid) {
+      await fusionpbxService.deleteIvrMenu(workflow.fusionpbxIvrMenuUuid);
     }
 
     await prisma.workflow.delete({

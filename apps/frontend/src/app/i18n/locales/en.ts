@@ -62,6 +62,10 @@ export const en = {
       label: 'Gather Input',
       description: 'Collect input with dynamic menu options',
     },
+    ivrMenu: {
+      label: 'IVR Menu',
+      description: 'Create an IVR menu with options and destinations',
+    },
     forwardToPhone: {
       label: 'Forward to Phone',
       description: 'Forward call to phone number with status connectors',
